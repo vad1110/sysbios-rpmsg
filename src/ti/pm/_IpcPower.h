@@ -63,7 +63,9 @@ extern "C" {
 #define WUGEN_MEVT1                     0x40001010
 
 /* Enable only Mailbox interrupt as a Wakeup source for now */
-#define WUGEN_INT_MASK                  (WUGEN_MAILBOX_BIT)
+#define WUGEN_INT_MASK                  (WUGEN_MAILBOX_BIT | \
+                                         WUGEN_GPT3_BIT    | \
+                                         WUGEN_GPT4_BIT)
 
 #define M3_SCR_REG                      0xE000ED10
 

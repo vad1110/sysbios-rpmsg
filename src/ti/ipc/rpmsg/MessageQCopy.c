@@ -51,6 +51,7 @@
 #include <xdc/runtime/Log.h>
 #include <xdc/runtime/Diags.h>
 
+#include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Swi.h>
 #include <ti/sysbios/knl/Semaphore.h>
 #include <ti/sysbios/heaps/HeapBuf.h>
@@ -117,6 +118,7 @@ typedef struct MessageQCopy_Transport  {
     Swi_Handle       swiHandle;
     VirtQueue_Handle virtQueue_toHost;
     VirtQueue_Handle virtQueue_fromHost;
+    Semaphore_Handle semHandle_toHost;
 } MessageQCopy_Transport;
 
 
@@ -183,10 +185,8 @@ static Void callback_availBufReady(VirtQueue_Handle vq)
         Swi_post(transport.swiHandle);
     }
     else if (vq == transport.virtQueue_toHost) {
-       /* Note: We post nothing for transport.virtQueue_toHost, as we assume the
-        * host has already made all buffers available for sending.
-        */
         Log_print0(Diags_INFO, FXNN": virtQueue_toHost kicked");
+        Semaphore_post(transport.semHandle_toHost);
     }
 }
 #undef FXNN
@@ -240,6 +240,7 @@ Void MessageQCopy_init(UInt16 remoteProcId)
        System_abort("MessageQCopy_init: HeapBuf_create returned 0\n");
     }
 
+    transport.semHandle_toHost = Semaphore_create(0, NULL, NULL);
     /*
      * Create a pair VirtQueues (one for sending, one for receiving).
      *
@@ -474,10 +475,14 @@ Int MessageQCopy_send(UInt16 dstProc,
 
     if (dstProc != MultiProc_self()) {
         /* Send to remote processor: */
-        key = GateSwi_enter(module.gateSwi);  // Protect vring structs.
-        token = VirtQueue_getAvailBuf(transport.virtQueue_toHost,
-                                      (Void **)&msg, &length);
-        GateSwi_leave(module.gateSwi, key);
+        do {
+            key = GateSwi_enter(module.gateSwi);  // Protect vring structs.
+            Semaphore_reset(transport.semHandle_toHost, 0);
+            token = VirtQueue_getAvailBuf(transport.virtQueue_toHost,
+                                          (Void **)&msg, &length);
+            GateSwi_leave(module.gateSwi, key);
+        } while (token < 0 && Semaphore_pend(transport.semHandle_toHost,
+                                             BIOS_WAIT_FOREVER));
 
         if (token >= 0) {
             /* Copy the payload and set message header: */

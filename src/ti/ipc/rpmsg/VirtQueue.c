@@ -65,6 +65,8 @@
 #include <ti/sysbios/knl/Clock.h>
 #include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/hal/Cache.h>
+#include <ti/sysbios/knl/package/internal/Clock.xdc.h>
+#include <ti/sysbios/knl/Queue.h>
 
 #include <ti/ipc/rpmsg/InterruptM3.h>
 #include <ti/ipc/rpmsg/VirtQueue.h>
@@ -360,6 +362,19 @@ Bool VirtQueue_enableCallback(VirtQueue_Object *vq)
 Bool VirtQueue_maySuspend()
 {
     VirtQueue_Object *vq = queueRegistry[ID_A9_TO_SYSM3];
+    Queue_Handle clockQ = Clock_Module_State_clockQ();
+    Queue_Elem  *elem = Queue_head(clockQ);
+    Clock_Object *obj;
+
+    while (elem != (Queue_Elem *)(clockQ)) {
+        obj = (Clock_Object *)elem;
+        elem = Queue_next(elem);
+        /* if event has timed out */
+        if (obj->active == TRUE) {
+            System_printf("At least one in Sleep\n");
+            return FALSE;
+        }
+    }
 
     return vq->last_avail_idx == vq->vring.avail->idx;
 }

@@ -53,6 +53,12 @@
 
 #define APP_NUM_ITERATIONS 100000
 
+struct client_msg {
+        void *cs;
+        unsigned c;
+};
+
+
 Void copyTaskFxn(UArg arg0, UArg arg1)
 {
     MessageQCopy_Handle    handle;
@@ -63,6 +69,7 @@ Void copyTaskFxn(UArg arg0, UArg arg1)
     UInt16                 len;
     Int                    i;
     Char                   *name;
+    struct client_msg *cmsg;
 
     System_printf("copyTask %d: Entered...:\n", arg0);
     printf("copyTask %d: Entered...:\n", arg0);
@@ -79,10 +86,11 @@ Void copyTaskFxn(UArg arg0, UArg arg1)
        /* Await a character message: */
        MessageQCopy_recv(handle, (Ptr)buffer, &len, &remoteEndpoint,
                          MessageQCopy_FOREVER);
+       cmsg = (void *)buffer;
 
        buffer[len] = '\0';
-       System_printf("copyTask %d: Received data: %s, len:%d\n", i + 1,
-                      buffer, len);
+       System_printf("copyTask %d: Received data: %u, len:%d\n", arg0,
+                      cmsg->c, len);
        printf("copyTask %d: Received data: %s, len:%d\n", i + 1,
                       buffer, len);
 
@@ -105,9 +113,9 @@ void start_ping_tasks()
     params.arg0 = 50;
     Task_create(copyTaskFxn, &params, NULL);
 
-    Task_Params_init(&params);
-    params.instance->name = "copy1";
-    params.priority = 3;
-    params.arg0 = 51;
-    Task_create(copyTaskFxn, &params, NULL);
+    //Task_Params_init(&params);
+    //params.instance->name = "copy1";
+    //params.priority = 3;
+    //params.arg0 = 51;
+    //Task_create(copyTaskFxn, &params, NULL);
 }

@@ -132,7 +132,8 @@
 #define TYPE_CARVEOUT    0
 #define TYPE_DEVMEM      1
 #define TYPE_TRACE       2
-#define TYPE_VDEV  3
+#define TYPE_VDEV        3
+#define TYPE_SUSPD_TIME  4
 
 struct fw_rsc_carveout {
 	u32 type;
